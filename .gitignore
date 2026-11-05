@@ -56,3 +56,4 @@ Thumbs.db
 # Contract Deployments
 deployments/*.json
 !deployments/.gitkeep
+

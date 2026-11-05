@@ -7,10 +7,8 @@ pub mod types;
 mod test;
 
 use errors::GovernanceError;
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol};
 use types::{DataKey, Proposal};
-use soroban_sdk::{
-    contract, contractimpl, Address, Env, String, Symbol,
-};
 
 #[contract]
 pub struct GovernanceContract;
@@ -36,8 +34,12 @@ impl GovernanceContract {
         env.storage()
             .instance()
             .set(&DataKey::VotingPeriodLedgers, &voting_period_ledgers);
-        env.storage().instance().set(&DataKey::QuorumVotes, &quorum_votes);
-        env.storage().instance().set(&DataKey::ProposalCounter, &0u32);
+        env.storage()
+            .instance()
+            .set(&DataKey::QuorumVotes, &quorum_votes);
+        env.storage()
+            .instance()
+            .set(&DataKey::ProposalCounter, &0u32);
         env.storage().instance().extend_ttl(100_000, 500_000);
 
         Ok(())
@@ -86,9 +88,13 @@ impl GovernanceContract {
 
         let proposal_key = DataKey::Proposal(counter);
         env.storage().persistent().set(&proposal_key, &proposal);
-        env.storage().persistent().extend_ttl(&proposal_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&proposal_key, 100_000, 500_000);
 
-        env.storage().instance().set(&DataKey::ProposalCounter, &counter);
+        env.storage()
+            .instance()
+            .set(&DataKey::ProposalCounter, &counter);
         env.storage().instance().extend_ttl(100_000, 500_000);
 
         env.events().publish(
@@ -144,8 +150,12 @@ impl GovernanceContract {
         env.storage().persistent().set(&proposal_key, &proposal);
         env.storage().persistent().set(&voted_key, &true);
 
-        env.storage().persistent().extend_ttl(&proposal_key, 100_000, 500_000);
-        env.storage().persistent().extend_ttl(&voted_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&proposal_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&voted_key, 100_000, 500_000);
 
         env.events().publish(
             (Symbol::new(&env, "vote_cast"), voter),
@@ -196,7 +206,9 @@ impl GovernanceContract {
 
         proposal.executed = true;
         env.storage().persistent().set(&proposal_key, &proposal);
-        env.storage().persistent().extend_ttl(&proposal_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&proposal_key, 100_000, 500_000);
 
         env.events().publish(
             (Symbol::new(&env, "proposal_executed"), executor),

@@ -34,3 +34,4 @@ describe('Zustand WalletStore State Management', () => {
     expect(disconnectedState.publicKey).toBeNull()
   })
 })
+

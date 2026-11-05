@@ -26,16 +26,16 @@ jobs:
           workspaces: "smart-contracts -> smart-contracts/target"
 
       - name: Check Formatting
-        run: cargo fmt --manifest-path smart-contracts/Cargo.toml -- --check
+        run: cd smart-contracts && cargo fmt --all -- --check
 
       - name: Run Clippy
-        run: cargo clippy --manifest-path smart-contracts/Cargo.toml --all-targets -- -D warnings
+        run: cd smart-contracts && cargo clippy --all-targets -- -D warnings
 
       - name: Run Cargo Tests
-        run: cargo test --manifest-path smart-contracts/Cargo.toml
+        run: cd smart-contracts && cargo test
 
       - name: Build Soroban WASM
-        run: cargo build --manifest-path smart-contracts/Cargo.toml --target wasm32-unknown-unknown --release
+        run: cd smart-contracts && cargo build --target wasm32-unknown-unknown --release
 
   backend:
     name: Backend API & Database
@@ -48,8 +48,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: backend/package.json
 
       - name: Install Dependencies
         run: cd backend && npm install
@@ -61,7 +59,7 @@ jobs:
         run: cd backend && npm run build
 
       - name: Run Backend Tests
-        run: cd backend && npm test --if-present
+        run: cd backend && npm test
 
   frontend:
     name: Frontend Web Application
@@ -74,8 +72,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package.json
 
       - name: Install Dependencies
         run: cd frontend && npm install
@@ -84,4 +80,4 @@ jobs:
         run: cd frontend && npm run build
 
       - name: Run Frontend Tests
-        run: cd frontend && npm test -- --run --if-present
+        run: cd frontend && npm test

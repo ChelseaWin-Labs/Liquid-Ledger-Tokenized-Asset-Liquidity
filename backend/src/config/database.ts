@@ -32,21 +32,21 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Log Prisma events
-prisma.$on('query' as any, (e: any) => {
+(prisma as any).$on('query', (e: any) => {
   logger.debug('Query: ' + e.query)
   logger.debug('Params: ' + e.params)
   logger.debug('Duration: ' + e.duration + 'ms')
 })
 
-prisma.$on('error' as any, (e: any) => {
+(prisma as any).$on('error', (e: any) => {
   logger.error('Prisma Error: ' + e.message)
 })
 
-prisma.$on('info' as any, (e: any) => {
+(prisma as any).$on('info', (e: any) => {
   logger.info('Prisma Info: ' + e.message)
 })
 
-prisma.$on('warn' as any, (e: any) => {
+(prisma as any).$on('warn', (e: any) => {
   logger.warn('Prisma Warning: ' + e.message)
 })
 

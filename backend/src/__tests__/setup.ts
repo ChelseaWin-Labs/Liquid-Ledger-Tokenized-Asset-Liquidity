@@ -6,3 +6,4 @@ process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/liquid
 process.env.STELLAR_NETWORK = 'testnet'
 process.env.HORIZON_URL = 'https://horizon-testnet.stellar.org'
 process.env.SOROBAN_RPC_URL = 'https://soroban-testnet.stellar.org'
+

@@ -6,9 +6,7 @@ pub mod errors;
 mod test;
 
 use errors::RwaTokenError;
-use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, Env, String, Symbol,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol};
 
 #[derive(Clone)]
 #[contracttype]
@@ -49,21 +47,25 @@ impl RwaTokenContract {
         env.storage().instance().set(&DataKey::Name, &name);
         env.storage().instance().set(&DataKey::Symbol, &symbol);
         env.storage().instance().set(&DataKey::Decimals, &decimals);
-        env.storage().instance().set(&DataKey::AssetType, &asset_type);
-        env.storage().instance().set(&DataKey::TotalSupply, &initial_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::AssetType, &asset_type);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &initial_supply);
 
         if initial_supply > 0 {
             let admin_key = DataKey::Balance(admin.clone());
             env.storage().persistent().set(&admin_key, &initial_supply);
-            env.storage().persistent().extend_ttl(&admin_key, 100_000, 500_000);
+            env.storage()
+                .persistent()
+                .extend_ttl(&admin_key, 100_000, 500_000);
         }
 
         env.storage().instance().extend_ttl(100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "init"), admin),
-            (symbol, initial_supply),
-        );
+        env.events()
+            .publish((Symbol::new(&env, "init"), admin), (symbol, initial_supply));
 
         Ok(())
     }
@@ -133,24 +135,24 @@ impl RwaTokenContract {
         env.storage()
             .persistent()
             .set(&from_key, &(from_balance - amount));
-        env.storage().persistent().set(&to_key, &(to_balance + amount));
+        env.storage()
+            .persistent()
+            .set(&to_key, &(to_balance + amount));
 
-        env.storage().persistent().extend_ttl(&from_key, 100_000, 500_000);
-        env.storage().persistent().extend_ttl(&to_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&from_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&to_key, 100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "transfer"), from, to),
-            amount,
-        );
+        env.events()
+            .publish((Symbol::new(&env, "transfer"), from, to), amount);
 
         Ok(())
     }
 
-    pub fn mint(
-        env: Env,
-        to: Address,
-        amount: i128,
-    ) -> Result<(), RwaTokenError> {
+    pub fn mint(env: Env, to: Address, amount: i128) -> Result<(), RwaTokenError> {
         let admin: Address = env
             .storage()
             .instance()
@@ -177,24 +179,22 @@ impl RwaTokenContract {
         env.storage()
             .persistent()
             .set(&to_key, &(current_balance + amount));
-        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &new_supply);
 
-        env.storage().persistent().extend_ttl(&to_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&to_key, 100_000, 500_000);
         env.storage().instance().extend_ttl(100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "mint"), to),
-            (amount, new_supply),
-        );
+        env.events()
+            .publish((Symbol::new(&env, "mint"), to), (amount, new_supply));
 
         Ok(())
     }
 
-    pub fn burn(
-        env: Env,
-        from: Address,
-        amount: i128,
-    ) -> Result<(), RwaTokenError> {
+    pub fn burn(env: Env, from: Address, amount: i128) -> Result<(), RwaTokenError> {
         let admin: Address = env
             .storage()
             .instance()
@@ -225,23 +225,22 @@ impl RwaTokenContract {
         env.storage()
             .persistent()
             .set(&from_key, &(current_balance - amount));
-        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &new_supply);
 
-        env.storage().persistent().extend_ttl(&from_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&from_key, 100_000, 500_000);
         env.storage().instance().extend_ttl(100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "burn"), from),
-            (amount, new_supply),
-        );
+        env.events()
+            .publish((Symbol::new(&env, "burn"), from), (amount, new_supply));
 
         Ok(())
     }
 
-    pub fn set_admin(
-        env: Env,
-        new_admin: Address,
-    ) -> Result<(), RwaTokenError> {
+    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), RwaTokenError> {
         let admin: Address = env
             .storage()
             .instance()
@@ -252,10 +251,8 @@ impl RwaTokenContract {
         env.storage().instance().set(&DataKey::Admin, &new_admin);
         env.storage().instance().extend_ttl(100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "set_admin"), admin),
-            new_admin,
-        );
+        env.events()
+            .publish((Symbol::new(&env, "set_admin"), admin), new_admin);
 
         Ok(())
     }

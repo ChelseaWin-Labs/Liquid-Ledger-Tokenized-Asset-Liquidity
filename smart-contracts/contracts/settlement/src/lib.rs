@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 
 pub mod errors;
 
@@ -6,9 +7,7 @@ pub mod errors;
 mod test;
 
 use errors::SettlementError;
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, BytesN, Env, Symbol,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, Symbol};
 
 #[derive(Clone)]
 #[contracttype]
@@ -43,7 +42,9 @@ impl SettlementContract {
         }
 
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::FeeTreasury, &fee_treasury);
+        env.storage()
+            .instance()
+            .set(&DataKey::FeeTreasury, &fee_treasury);
         env.storage().instance().set(&DataKey::FeeBps, &fee_bps);
         env.storage().instance().set(&DataKey::SwapCount, &0u32);
         env.storage().instance().extend_ttl(100_000, 500_000);
@@ -61,12 +62,12 @@ impl SettlementContract {
 
         let key = DataKey::SupportedToken(token.clone());
         env.storage().persistent().set(&key, &true);
-        env.storage().persistent().extend_ttl(&key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, 100_000, 500_000);
 
-        env.events().publish(
-            (Symbol::new(&env, "token_added"), admin),
-            token,
-        );
+        env.events()
+            .publish((Symbol::new(&env, "token_added"), admin), token);
 
         Ok(())
     }
@@ -82,10 +83,8 @@ impl SettlementContract {
         let key = DataKey::SupportedToken(token.clone());
         env.storage().persistent().remove(&key);
 
-        env.events().publish(
-            (Symbol::new(&env, "token_removed"), admin),
-            token,
-        );
+        env.events()
+            .publish((Symbol::new(&env, "token_removed"), admin), token);
 
         Ok(())
     }
@@ -114,10 +113,7 @@ impl SettlementContract {
     }
 
     pub fn get_fee_bps(env: Env) -> u32 {
-        env.storage()
-            .instance()
-            .get(&DataKey::FeeBps)
-            .unwrap_or(0)
+        env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0)
     }
 
     pub fn get_fee_treasury(env: Env) -> Result<Address, SettlementError> {
@@ -170,11 +166,7 @@ impl SettlementContract {
             .instance()
             .get(&DataKey::FeeTreasury)
             .ok_or(SettlementError::NotInitialized)?;
-        let fee_bps: u32 = env
-            .storage()
-            .instance()
-            .get(&DataKey::FeeBps)
-            .unwrap_or(0);
+        let fee_bps: u32 = env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0);
 
         // 3. Fee calculation
         let maker_fee = if fee_bps > 0 {
@@ -209,7 +201,9 @@ impl SettlementContract {
 
         // 6. Consume nonce to prevent replay
         env.storage().persistent().set(&nonce_key, &true);
-        env.storage().persistent().extend_ttl(&nonce_key, 100_000, 500_000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&nonce_key, 100_000, 500_000);
 
         // 7. Update swap metrics
         let mut swaps: u32 = env

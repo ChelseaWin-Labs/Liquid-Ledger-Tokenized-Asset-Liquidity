@@ -40,3 +40,4 @@ export const config: AppConfig = {
   rateLimitWindowMs: 15 * 60 * 1000,
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '500', 10),
 }
+

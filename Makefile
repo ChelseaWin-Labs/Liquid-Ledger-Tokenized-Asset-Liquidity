@@ -39,3 +39,4 @@ docker-down:
 clean:
 	rm -rf dist build target node_modules
 	cd smart-contracts && cargo clean
+

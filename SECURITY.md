@@ -36,3 +36,4 @@ If you discover a vulnerability or potential exploit in Liquid Ledger:
 - Always test against Stellar Testnet before interacting with live accounts.
 - Never commit private keys, master seeds, or sensitive `.env` files to git.
 - Review smart contract source code and verify addresses on [StellarExpert](https://stellar.expert) prior to signing transactions.
+

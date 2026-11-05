@@ -36,3 +36,4 @@ describe('Frontend Formatter Utilities', () => {
     expect(truncateAddress('short', 4, 4)).toBe('short')
   })
 })
+

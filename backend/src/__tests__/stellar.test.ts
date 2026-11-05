@@ -53,3 +53,4 @@ describe('StellarService Unit Tests', () => {
     expect(xdr.length).toBeGreaterThan(20)
   })
 })
+

@@ -19,7 +19,7 @@ fn test_initialize_and_metadata() {
         &name,
         &symbol,
         &7u32,
-        &1_000_000_0000000i128,
+        &10_000_000_000_000i128,
         &asset_type,
     );
 
@@ -27,8 +27,8 @@ fn test_initialize_and_metadata() {
     assert_eq!(client.symbol(), symbol);
     assert_eq!(client.decimals(), 7u32);
     assert_eq!(client.asset_type(), asset_type);
-    assert_eq!(client.total_supply(), 1_000_000_0000000i128);
-    assert_eq!(client.balance(&admin), 1_000_000_0000000i128);
+    assert_eq!(client.total_supply(), 10_000_000_000_000i128);
+    assert_eq!(client.balance(&admin), 10_000_000_000_000i128);
 }
 
 #[test]
