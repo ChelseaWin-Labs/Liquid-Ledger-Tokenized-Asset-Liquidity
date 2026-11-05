@@ -1,17 +1,32 @@
-import { Server, Networks, TransactionBuilder, Operation, Asset } from 'stellar-sdk'
-import { allowAccess } from '@stellar/freighter-api'
+import {
+  isConnected as isFreighterConnected,
+  requestAccess,
+  getPublicKey,
+  getNetwork,
+  signTransaction,
+} from '@stellar/freighter-api'
+import { Horizon, Networks, Asset } from 'stellar-sdk'
 
-const server = new Server('https://horizon-testnet.stellar.org')
-const networkPassphrase = Networks.TESTNET
+const HORIZON_URL =
+  import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org'
+const NETWORK_PASSPHRASE =
+  import.meta.env.VITE_STELLAR_NETWORK === 'public'
+    ? Networks.PUBLIC
+    : Networks.TESTNET
+
+const server = new Horizon.Server(HORIZON_URL)
+
+export interface StellarAccountBalance {
+  asset_code: string
+  asset_issuer: string
+  balance: string
+}
 
 export interface StellarAccount {
   publicKey: string
   balance: number
-  assets: Array<{
-    asset_code: string
-    asset_issuer: string
-    balance: string
-  }>
+  assets: StellarAccountBalance[]
+  sequence: string
 }
 
 export interface TransactionResult {
@@ -20,142 +35,82 @@ export interface TransactionResult {
   error?: string
 }
 
-export class StellarService {
-  private server: Server
+export class StellarClient {
+  private server: Horizon.Server
+  private networkPassphrase: string
 
   constructor() {
     this.server = server
+    this.networkPassphrase = NETWORK_PASSPHRASE
+  }
+
+  async isWalletAvailable(): Promise<boolean> {
+    try {
+      return await isFreighterConnected()
+    } catch {
+      return false
+    }
   }
 
   async connectWallet(): Promise<string> {
     try {
-      const response = await allowAccess()
-      if (response.address) {
-        return response.address
+      const accessObj = await requestAccess()
+      if (accessObj && typeof accessObj === 'object' && 'address' in accessObj) {
+        return (accessObj as any).address
       }
-      throw new Error('Failed to connect wallet')
-    } catch (error) {
-      throw new Error(`Wallet connection failed: ${error}`)
+
+      const key = await getPublicKey()
+      if (key) {
+        return key
+      }
+      throw new Error('No account found in Freighter wallet')
+    } catch (error: any) {
+      throw new Error(
+        error?.message || 'Freighter wallet connection failed. Ensure extension is unlocked.'
+      )
     }
   }
 
   async getAccount(publicKey: string): Promise<StellarAccount> {
     try {
       const account = await this.server.loadAccount(publicKey)
-      const balances = account.balances.map(balance => ({
-        asset_code: 'asset_code' in balance ? balance.asset_code : 'XLM',
-        asset_issuer: 'asset_issuer' in balance ? balance.asset_issuer : '',
-        balance: balance.balance,
+      const balances: StellarAccountBalance[] = account.balances.map((b: any) => ({
+        asset_code: 'asset_code' in b ? b.asset_code : 'XLM',
+        asset_issuer: 'asset_issuer' in b ? b.asset_issuer : '',
+        balance: b.balance,
       }))
+
+      const xlmBalance = parseFloat(
+        balances.find((b) => b.asset_code === 'XLM')?.balance || '0'
+      )
 
       return {
         publicKey: account.accountId(),
-        balance: parseFloat(balances.find(b => b.asset_code === 'XLM')?.balance || '0'),
+        balance: xlmBalance,
         assets: balances,
+        sequence: account.sequenceNumber(),
       }
-    } catch (error) {
-      throw new Error(`Failed to load account: ${error}`)
+    } catch (error: any) {
+      return {
+        publicKey,
+        balance: 0,
+        assets: [],
+        sequence: '0',
+      }
     }
   }
 
-  async createTokenizedAsset(
-    sourcePublicKey: string,
-    assetCode: string,
-    assetIssuer: string,
-    amount: string
-  ): Promise<TransactionResult> {
+  async signWithFreighter(xdr: string): Promise<string> {
     try {
-      const sourceAccount = await this.server.loadAccount(sourcePublicKey)
-      
-      const asset = new Asset(assetCode, assetIssuer)
-      
-      const transaction = new TransactionBuilder(sourceAccount, {
-        fee: '100',
-        networkPassphrase,
+      return await signTransaction(xdr, {
+        network: 'TESTNET',
+        networkPassphrase: this.networkPassphrase,
       })
-        .addOperation(Operation.payment({
-          destination: sourcePublicKey,
-          asset,
-          amount,
-        }))
-        .setTimeout(30)
-        .build()
-
-      // In a real app, this would be signed using Freighter or another wallet
-      // For now, we'll simulate the transaction
-      console.log('Transaction created:', transaction)
-      
-      return {
-        success: true,
-        hash: 'simulated-transaction-hash',
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: `Transaction failed: ${error}`,
-      }
-    }
-  }
-
-  async sendPayment(
-    sourcePublicKey: string,
-    destinationPublicKey: string,
-    assetCode: string,
-    assetIssuer: string,
-    amount: string
-  ): Promise<TransactionResult> {
-    try {
-      const sourceAccount = await this.server.loadAccount(sourcePublicKey)
-      const asset = assetCode === 'XLM' 
-        ? Asset.native() 
-        : new Asset(assetCode, assetIssuer)
-
-      const transaction = new TransactionBuilder(sourceAccount, {
-        fee: '100',
-        networkPassphrase,
-      })
-        .addOperation(Operation.payment({
-          destination: destinationPublicKey,
-          asset,
-          amount,
-        }))
-        .setTimeout(30)
-        .build()
-
-      console.log('Payment transaction created:', transaction)
-      
-      return {
-        success: true,
-        hash: 'simulated-payment-hash',
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: `Payment failed: ${error}`,
-      }
-    }
-  }
-
-  async getTransactionHistory(publicKey: string, limit = 10) {
-    try {
-      const transactions = await this.server
-        .transactions()
-        .forAccount(publicKey)
-        .limit(limit)
-        .order('desc')
-        .call()
-
-      return transactions.records.map(record => ({
-        hash: record.hash,
-        created_at: record.created_at,
-        successful: record.successful,
-        source_account: record.source_account,
-        operations: record.operations,
-      }))
-    } catch (error) {
-      throw new Error(`Failed to get transaction history: ${error}`)
+    } catch (error: any) {
+      throw new Error(`Signing cancelled or failed: ${error?.message || error}`)
     }
   }
 }
 
-export const stellarService = new StellarService()
+export const stellarClient = new StellarClient()
+export default stellarClient
