@@ -1,183 +1,162 @@
 #!/bin/bash
 
-# Deployment script for Liquid Ledger smart contracts
-# This script deploys the tokenized asset contracts to Stellar testnet
+# Deployment script for Liquid Ledger Soroban smart contracts
+# Deploys RWA Token, Settlement Engine, and Governance to Stellar testnet
 
-set -e
+set -euo pipefail
 
-echo "Deploying Liquid Ledger Smart Contracts..."
+echo "=== Deploying Liquid Ledger Smart Contracts to Stellar Testnet ==="
 
-# Check if stellar-cli is installed
 if ! command -v stellar &> /dev/null; then
-    echo "Error: stellar-cli is not installed"
-    echo "Please install it with: cargo install stellar-cli"
+    echo "Error: 'stellar' CLI is not installed."
+    echo "Install via: cargo install --locked stellar-cli --features opt"
     exit 1
 fi
 
-# Set network (testnet for development)
-NETWORK="testnet"
-echo "Deploying to $NETWORK"
+NETWORK="${STELLAR_NETWORK:-testnet}"
+SOURCE_IDENTITY="${STELLAR_SOURCE_IDENTITY:-alice}"
+ADMIN_ADDRESS="${STELLAR_ADMIN_ADDRESS:-$(stellar keys address "$SOURCE_IDENTITY" 2>/dev/null || echo "")}"
 
-# Build contracts
-echo "Building contracts..."
+if [ -z "$ADMIN_ADDRESS" ]; then
+    echo "Error: STELLAR_ADMIN_ADDRESS not set or identity '$SOURCE_IDENTITY' not found in stellar-cli keystore."
+    exit 1
+fi
+
+echo "Network: $NETWORK"
+echo "Deployer Identity: $SOURCE_IDENTITY ($ADMIN_ADDRESS)"
+
+# Build workspace release contracts
+echo "Building all workspace contracts for wasm32..."
 cargo build --target wasm32-unknown-unknown --release
 
-# Create deployment directory
+WASM_DIR="target/wasm32-unknown-unknown/release"
+RWA_WASM="$WASM_DIR/rwa_token.wasm"
+SETTLEMENT_WASM="$WASM_DIR/settlement.wasm"
+GOVERNANCE_WASM="$WASM_DIR/governance.wasm"
+
+for wasm in "$RWA_WASM" "$SETTLEMENT_WASM" "$GOVERNANCE_WASM"; do
+    if [ ! -f "$wasm" ]; then
+        echo "Error: Expected build artifact $wasm not found."
+        exit 1
+    fi
+done
+
 mkdir -p deployments
-DEPLOYMENT_FILE="deployments/$(date +%Y%m%d_%H%M%S)_deployment.json"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+DEPLOYMENT_FILE="deployments/${TIMESTAMP}_deployment.json"
 
-echo "Deployment started at $(date)"
+echo "Deploying RWA Token contract for Gold (GLD)..."
+GLD_TOKEN_ID=$(stellar contract deploy \
+    --wasm "$RWA_WASM" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK")
 
-# Deploy Tokenized Asset Contract
-echo "Deploying TokenizedAsset contract..."
-TOKEN_CONTRACT_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/liquid_ledger_contracts.wasm \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK)
-
-echo "TokenizedAsset contract deployed with ID: $TOKEN_CONTRACT_ID"
-
-# Initialize Gold Token
-echo "Initializing Gold Token (GLD)..."
+echo "Initializing GLD Token ($GLD_TOKEN_ID)..."
 stellar contract invoke \
-    --id $TOKEN_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
+    --id "$GLD_TOKEN_ID" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK" \
     -- initialize \
-    --admin $STELLAR_PUBLIC_KEY \
+    --admin "$ADMIN_ADDRESS" \
     --name "Liquid Ledger Gold Token" \
     --symbol "GLD" \
     --decimals 7 \
-    --total_supply 1000000000000
+    --asset_class "commodity"
 
-# Initialize US Treasury Token
-echo "Initializing US Treasury Token (UST)..."
-UST_CONTRACT_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/liquid_ledger_contracts.wasm \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK)
+echo "Deploying RWA Token contract for US Treasury (UST)..."
+UST_TOKEN_ID=$(stellar contract deploy \
+    --wasm "$RWA_WASM" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK")
 
+echo "Initializing UST Token ($UST_TOKEN_ID)..."
 stellar contract invoke \
-    --id $UST_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
+    --id "$UST_TOKEN_ID" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK" \
     -- initialize \
-    --admin $STELLAR_PUBLIC_KEY \
+    --admin "$ADMIN_ADDRESS" \
     --name "Liquid Ledger US Treasury" \
     --symbol "UST" \
     --decimals 7 \
-    --total_supply 1000000000000
+    --asset_class "fixed_income"
 
-# Initialize Diversified Fund Token
-echo "Initializing Diversified Fund Token (DIV)..."
-DIV_CONTRACT_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/liquid_ledger_contracts.wasm \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK)
+echo "Deploying RWA Token contract for Diversified Index (DIV)..."
+DIV_TOKEN_ID=$(stellar contract deploy \
+    --wasm "$RWA_WASM" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK")
 
+echo "Initializing DIV Token ($DIV_TOKEN_ID)..."
 stellar contract invoke \
-    --id $DIV_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
+    --id "$DIV_TOKEN_ID" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK" \
     -- initialize \
-    --admin $STELLAR_PUBLIC_KEY \
+    --admin "$ADMIN_ADDRESS" \
     --name "Liquid Ledger Diversified Fund" \
     --symbol "DIV" \
     --decimals 7 \
-    --total_supply 1000000000000
+    --asset_class "equity_index"
 
-# Deploy Settlement Engine
 echo "Deploying Settlement Engine..."
-SETTLEMENT_CONTRACT_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/liquid_ledger_contracts.wasm \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK)
+SETTLEMENT_ID=$(stellar contract deploy \
+    --wasm "$SETTLEMENT_WASM" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK")
 
+echo "Initializing Settlement Engine ($SETTLEMENT_ID)..."
 stellar contract invoke \
-    --id $SETTLEMENT_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
+    --id "$SETTLEMENT_ID" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK" \
     -- initialize \
-    --admin $STELLAR_PUBLIC_KEY
+    --admin "$ADMIN_ADDRESS" \
+    --treasury "$ADMIN_ADDRESS" \
+    --fee_bps 25
 
-# Add supported tokens to settlement engine
-stellar contract invoke \
-    --id $SETTLEMENT_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
-    -- add_supported_token \
-    --token_address $TOKEN_CONTRACT_ID
+echo "Adding supported tokens to Settlement Engine..."
+for token in "$GLD_TOKEN_ID" "$UST_TOKEN_ID" "$DIV_TOKEN_ID"; do
+    stellar contract invoke \
+        --id "$SETTLEMENT_ID" \
+        --source "$SOURCE_IDENTITY" \
+        --network "$NETWORK" \
+        -- set_supported_token \
+        --token "$token" \
+        --supported true
+done
 
-stellar contract invoke \
-    --id $SETTLEMENT_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
-    -- add_supported_token \
-    --token_address $UST_CONTRACT_ID
-
-stellar contract invoke \
-    --id $SETTLEMENT_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
-    -- add_supported_token \
-    --token_address $DIV_CONTRACT_ID
-
-# Deploy Governance Contract
 echo "Deploying Governance Contract..."
-GOVERNANCE_CONTRACT_ID=$(stellar contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/liquid_ledger_contracts.wasm \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK)
+GOVERNANCE_ID=$(stellar contract deploy \
+    --wasm "$GOVERNANCE_WASM" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK")
 
+echo "Initializing Governance Contract ($GOVERNANCE_ID)..."
 stellar contract invoke \
-    --id $GOVERNANCE_CONTRACT_ID \
-    --source $STELLAR_SECRET_KEY \
-    --network $NETWORK \
+    --id "$GOVERNANCE_ID" \
+    --source "$SOURCE_IDENTITY" \
+    --network "$NETWORK" \
     -- initialize \
-    --admin $STELLAR_PUBLIC_KEY
+    --admin "$ADMIN_ADDRESS" \
+    --voting_period_ledgers 100 \
+    --execution_timelock_ledgers 20 \
+    --quorum_bps 4000
 
-# Create deployment manifest
-cat > $DEPLOYMENT_FILE << EOF
+cat > "$DEPLOYMENT_FILE" << EOF
 {
-  "deployment_date": "$(date)",
   "network": "$NETWORK",
+  "deployer": "$ADMIN_ADDRESS",
+  "deployed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "contracts": {
-    "gold_token": {
-      "id": "$TOKEN_CONTRACT_ID",
-      "name": "Liquid Ledger Gold Token",
-      "symbol": "GLD"
-    },
-    "treasury_token": {
-      "id": "$UST_CONTRACT_ID",
-      "name": "Liquid Ledger US Treasury",
-      "symbol": "UST"
-    },
-    "fund_token": {
-      "id": "$DIV_CONTRACT_ID",
-      "name": "Liquid Ledger Diversified Fund",
-      "symbol": "DIV"
-    },
-    "settlement_engine": {
-      "id": "$SETTLEMENT_CONTRACT_ID"
-    },
-    "governance": {
-      "id": "$GOVERNANCE_CONTRACT_ID"
-    }
+    "gld_token": "$GLD_TOKEN_ID",
+    "ust_token": "$UST_TOKEN_ID",
+    "div_token": "$DIV_TOKEN_ID",
+    "settlement_engine": "$SETTLEMENT_ID",
+    "governance": "$GOVERNANCE_ID"
   }
 }
 EOF
 
-echo "Deployment completed successfully!"
-echo "Deployment manifest saved to: $DEPLOYMENT_FILE"
-echo ""
-echo "Contract IDs:"
-echo "Gold Token (GLD): $TOKEN_CONTRACT_ID"
-echo "US Treasury (UST): $UST_CONTRACT_ID"
-echo "Diversified Fund (DIV): $DIV_CONTRACT_ID"
-echo "Settlement Engine: $SETTLEMENT_CONTRACT_ID"
-echo "Governance: $GOVERNANCE_CONTRACT_ID"
-echo ""
-echo "Next steps:"
-echo "1. Update your backend configuration with these contract IDs"
-echo "2. Update your frontend with the correct contract addresses"
-echo "3. Test the contracts using the test scripts"
+echo "=== Deployment Complete ==="
+echo "Manifest saved to: $DEPLOYMENT_FILE"

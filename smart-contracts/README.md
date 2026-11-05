@@ -1,206 +1,116 @@
 # Liquid Ledger Smart Contracts
 
-This directory contains the Stellar Soroban smart contracts for the Liquid Ledger platform.
+This directory contains the production Stellar Soroban smart contracts powering Liquid Ledger. The workspace is built on **Soroban SDK v21.0.0** and partitioned into modular, isolated smart contract crates.
 
-## Contracts Overview
+---
 
-### 1. Tokenized Asset Contract (`token.rs`)
-Manages tokenized versions of traditional assets (gold, US Treasuries, diversified funds).
-
-**Features:**
-- ERC-20-like token functionality
-- Asset metadata management
-- Mint/burn operations (admin only)
-- Transfer and allowance functions
-- Asset type classification (gold/treasury/fund)
-
-**Key Functions:**
-- `initialize()` - Set up token with metadata
-- `mint()` - Create new tokens (admin only)
-- `burn()` - Destroy tokens (admin only)
-- `transfer()` - Transfer tokens between accounts
-- `approve()` / `transfer_from()` - Allowance-based transfers
-
-### 2. Settlement Engine Contract (`settlement.rs`)
-Handles multi-asset transactions and atomic swaps.
-
-**Features:**
-- Atomic swaps between different tokenized assets
-- Debit card settlement processing
-- Batch settlement for multiple transactions
-- Settlement fee management
-- Supported token management
-
-**Key Functions:**
-- `atomic_swap()` - Execute atomic token swaps
-- `card_settlement()` - Process debit card transactions
-- `batch_settlement()` - Process multiple settlements
-- `add_supported_token()` - Add supported tokens
-- `get_settlement_fee()` - Get current settlement fee
-
-### 3. Governance Contract (`governance.rs`)
-Manages contract upgrades and platform governance.
-
-**Features:**
-- Proposal creation and voting
-- Contract upgrade execution
-- Governance parameter management
-- Quorum and voting period controls
-
-**Key Functions:**
-- `create_proposal()` - Create governance proposals
-- `vote()` - Vote on active proposals
-- `execute_proposal()` - Execute successful proposals
-- `update_parameters()` - Modify governance settings
-
-## Architecture
-
-The smart contracts follow a modular architecture:
+## Workspace Architecture
 
 ```
-TokenizedAsset Contract
-    |
-    v
-Settlement Engine
-    |
-    v
-Governance Contract
+smart-contracts/
+├── Cargo.toml                      # Workspace manifest
+├── Cargo.lock                      # Deterministic dependency lock
+├── contracts/
+│   ├── rwa_token/                  # Real-World Asset (RWA) token contract
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs              # ERC-20 compliant RWA token with compliance hooks
+│   │       ├── metadata.rs         # Asset class metadata, verification URI, and yields
+│   │       ├── errors.rs           # Soroban contract errors
+│   │       └── test.rs             # Unit & integration tests
+│   ├── settlement/                 # Atomic swap and POS debit settlement engine
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs              # Replay-protected atomic swaps & fee splits
+│   │       ├── errors.rs           # Settlement engine errors
+│   │       └── test.rs             # Multi-asset settlement tests
+│   └── governance/                 # Decentralized proposal & timelocked execution
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs              # Proposal creation, voting, and timelock
+│           ├── types.rs            # Proposal state machine & voter storage
+│           ├── errors.rs           # Governance errors
+│           └── test.rs             # Quorum and lifecycle tests
+└── scripts/
+    ├── deploy.sh                   # Testnet deployment automation (Bash)
+    └── deploy.ps1                  # Testnet deployment automation (PowerShell)
 ```
 
-- **TokenizedAsset**: Individual contracts for each asset type
-- **Settlement Engine**: Central hub for all transactions
-- **Governance**: Manages upgrades and platform decisions
+---
 
-## Deployment
+## Contract Modules
 
-### Prerequisites
-- Rust toolchain
-- Stellar CLI (`cargo install stellar-cli`)
-- Stellar account with testnet XLM
+### 1. `rwa_token`
+An institutional-grade RWA asset contract supporting:
+- Standard Soroban Token interface (`initialize`, `mint`, `burn`, `transfer`, `balance`, `allowance`).
+- Compliance controls: Account pause and freeze capabilities for regulatory adherence.
+- Rich Asset Metadata: Asset class (`commodity`, `fixed_income`, `equity_index`, `real_estate`), verification URI, annual yield basis points, and valuation timestamps.
 
-### Build Contracts
+### 2. `settlement`
+High-speed atomic multi-asset settlement:
+- Nonce and expiration-based replay protection for off-chain order matching.
+- Dynamic protocol fee split routed directly to the platform treasury.
+- Whitelisted supported token validation.
+- Cross-asset debit card POS liquidation authorization.
+
+### 3. `governance`
+Decentralized governance module:
+- Proposal creation with configurable voting window and timelock delays.
+- Staked voting power calculation with quorum requirements.
+- Status lifecycle: `Active` -> `Passed` / `Defeated` -> `Queued` -> `Executed`.
+
+---
+
+## Building Contracts
+
+Prerequisites:
+- Rust toolchain (`rustup target add wasm32-unknown-unknown`)
+- Soroban CLI (`cargo install --locked stellar-cli --features opt`)
+
 ```bash
+# Build all contracts to WebAssembly
 cargo build --target wasm32-unknown-unknown --release
 ```
 
-### Deploy to Testnet
+WASM artifacts will be compiled to `smart-contracts/target/wasm32-unknown-unknown/release/`:
+- `rwa_token.wasm`
+- `settlement.wasm`
+- `governance.wasm`
+
+---
+
+## Running Automated Tests
+
+Run the full test suite across all workspace contracts:
+
 ```bash
+# Test all contracts
+cargo test
+
+# Test individual contracts
+cargo test --manifest-path contracts/rwa_token/Cargo.toml
+cargo test --manifest-path contracts/settlement/Cargo.toml
+cargo test --manifest-path contracts/governance/Cargo.toml
+```
+
+---
+
+## Deployment to Stellar Testnet
+
+Set your environment identity:
+```bash
+export STELLAR_NETWORK=testnet
+export STELLAR_SOURCE_IDENTITY=alice
+```
+
+Run the deployer:
+```bash
+# On Linux / macOS
 chmod +x scripts/deploy.sh
 ./scripts/deploy.sh
+
+# On Windows PowerShell
+.\scripts\deploy.ps1 -Network testnet -SourceIdentity alice
 ```
 
-The deployment script will:
-1. Build all contracts
-2. Deploy separate instances for each asset type
-3. Initialize contracts with proper configuration
-4. Set up the settlement engine with supported tokens
-5. Deploy governance contract
-6. Generate deployment manifest
-
-## Testing
-
-### Run Tests
-```bash
-cargo test
-```
-
-### Integration Testing
-The contracts include comprehensive tests for:
-- Token operations (mint, burn, transfer)
-- Atomic swaps
-- Settlement processing
-- Governance functions
-
-## Configuration
-
-### Environment Variables
-```bash
-STELLAR_SECRET_KEY=your_testnet_secret_key
-STELLAR_PUBLIC_KEY=your_testnet_public_key
-```
-
-### Contract Parameters
-- **Settlement Fee**: 0.1% (100 basis points)
-- **Voting Period**: 7 days
-- **Quorum**: 5000 tokens
-- **Proposal Threshold**: 1000 tokens
-
-## Security Features
-
-### Access Control
-- Admin-only functions for critical operations
-- Multi-signature support for sensitive actions
-- Role-based permissions
-
-### Audit Trail
-- All transactions emit events
-- Comprehensive logging
-- Transparent governance actions
-
-### Economic Security
-- Settlement fees to prevent spam
-- Proposal thresholds to prevent governance attacks
-- Time locks for critical operations
-
-## Integration
-
-### Backend Integration
-Update your backend configuration with deployed contract IDs:
-
-```javascript
-const contracts = {
-  goldToken: "G...",
-  treasuryToken: "G...",
-  fundToken: "G...",
-  settlementEngine: "G...",
-  governance: "G..."
-};
-```
-
-### Frontend Integration
-Use the Stellar SDK to interact with contracts:
-
-```javascript
-import { Server, TransactionBuilder, Operation } from 'stellar-sdk';
-
-const server = new Server('https://horizon-testnet.stellar.org');
-// Contract interaction code
-```
-
-## Monitoring
-
-### Events
-Contracts emit events for:
-- Token transfers
-- Settlement operations
-- Governance actions
-- Proposal lifecycle
-
-### Metrics
-Track:
-- Transaction volume
-- Settlement success rates
-- Governance participation
-- Asset liquidity
-
-## Upgrade Process
-
-The governance contract enables secure upgrades:
-
-1. Create upgrade proposal
-2. Community voting
-3. Execute successful proposal
-4. Deploy new contract version
-5. Update settlement engine references
-
-## Support
-
-For questions or issues:
-1. Check the documentation
-2. Review test cases
-3. Create an issue in the repository
-4. Contact the development team
-
-## License
-
-MIT License - see LICENSE file for details.
+The script produces a JSON manifest in `smart-contracts/deployments/` with all deployed contract IDs.
