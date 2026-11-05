@@ -1,0 +1,61 @@
+name: Bug Report
+description: File a bug report to help us improve Liquid Ledger
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Select which component of Liquid Ledger has the issue.
+      options:
+        - Smart Contracts (Soroban/Rust)
+        - Backend API (Node.js/Prisma)
+        - Frontend Application (React/Tailwind)
+        - DevOps / Infrastructure / Scripts
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps To Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Info
+      description: Node version, Rust version, OS, browser, Freighter extension version.
+      placeholder: |
+        - OS: Windows 11 / macOS / Ubuntu
+        - Node Version: v20.x
+        - Rust Version: 1.80+
+        - Browser: Chrome / Brave / Firefox
+        - Wallet: Freighter v5.x
+    validations:
+      required: false

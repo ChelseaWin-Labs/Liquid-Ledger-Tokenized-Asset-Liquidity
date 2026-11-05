@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Community Discussions
+    url: https://github.com/ChelseaWin-Labs/Liquid-Ledger-Tokenized-Asset-Liquidity/discussions
+    about: Ask questions and discuss features with the community.
+  - name: Security Vulnerability Reporting
+    url: https://github.com/ChelseaWin-Labs/Liquid-Ledger-Tokenized-Asset-Liquidity/security/advisories/new
+    about: Privately disclose sensitive security vulnerabilities.
