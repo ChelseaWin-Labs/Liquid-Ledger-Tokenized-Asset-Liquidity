@@ -144,7 +144,7 @@ router.get('/portfolio', asyncHandler(async (req: AuthRequest, res: Response) =>
     },
   })
 
-  const totalValue = userAssets.reduce((sum, ua) => sum + ua.valueInUSD, 0)
+  const totalValue = userAssets.reduce((sum: number, ua: any) => sum + ua.valueInUSD, 0)
   const totalAssets = userAssets.length
 
   // Get recent transactions

@@ -214,7 +214,7 @@ router.post('/:id/authorize', asyncHandler(async (req: AuthRequest, res: Respons
   const txHash = crypto.randomBytes(32).toString('hex')
 
   // Execute liquidation and card transaction atomically
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     // 1. Record approved card transaction
     const cardTx = await tx.cardTransaction.create({
       data: {

@@ -97,7 +97,7 @@ router.post('/:id/buy', authenticate, asyncHandler(async (req: AuthRequest, res:
   const fee = usdAmount * 0.001 // 0.1% protocol fee
 
   // Execute atomically via Prisma transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const transaction = await tx.transaction.create({
       data: {
         userId: req.user!.id,
@@ -205,7 +205,7 @@ router.post('/:id/sell', authenticate, asyncHandler(async (req: AuthRequest, res
   const fee = usdAmount * 0.001
   const txHash = crypto.randomBytes(32).toString('hex')
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const transaction = await tx.transaction.create({
       data: {
         userId: req.user!.id,

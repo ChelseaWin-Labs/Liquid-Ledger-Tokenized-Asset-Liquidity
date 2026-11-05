@@ -63,8 +63,8 @@ router.get('/stats', asyncHandler(async (req: AuthRequest, res: Response) => {
     },
   })
 
-  const totalVolume = transactions.reduce((sum, tx) => sum + tx.totalValue, 0)
-  const totalFees = transactions.reduce((sum, tx) => sum + tx.fee, 0)
+  const totalVolume = transactions.reduce((sum: number, tx: any) => sum + tx.totalValue, 0)
+  const totalFees = transactions.reduce((sum: number, tx: any) => sum + tx.fee, 0)
   const count = transactions.length
 
   res.json({

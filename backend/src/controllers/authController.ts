@@ -28,13 +28,13 @@ const generateTokens = (userId: string) => {
   const accessToken = jwt.sign(
     { userId },
     config.jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as any }
   )
 
   const refreshToken = jwt.sign(
     { userId },
     process.env.JWT_REFRESH_SECRET || `${config.jwtSecret}_refresh`,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    { expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any }
   )
 
   return { accessToken, refreshToken }

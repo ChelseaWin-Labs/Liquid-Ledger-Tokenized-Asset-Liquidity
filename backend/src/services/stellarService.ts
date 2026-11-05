@@ -5,6 +5,7 @@ import {
   Operation,
   Asset,
   Keypair,
+  Memo,
   rpc as SorobanRpc,
 } from 'stellar-sdk'
 import axios from 'axios'
@@ -146,7 +147,7 @@ export class StellarService {
     )
 
     if (memo) {
-      builder = builder.addMemo(Horizon.Memo.text(memo.slice(0, 28)))
+      builder = builder.addMemo(Memo.text(memo.slice(0, 28)))
     }
 
     const tx = builder.setTimeout(180).build()
