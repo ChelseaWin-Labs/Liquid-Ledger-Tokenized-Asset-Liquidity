@@ -1,35 +1,34 @@
 import { Router, Response } from 'express'
 import { prisma } from '../config/database'
-import { asyncHandler } from '../middleware/errorHandler'
-import { AuthRequest } from '../middleware/auth'
+import { asyncHandler, AppError } from '../middleware/errorHandler'
+import { authenticate, AuthRequest } from '../middleware/auth'
+import crypto from 'crypto'
 import Joi from 'joi'
 
 const router = Router()
 
-// All asset routes require authentication except for getting available assets
+// Get available assets (Public / optionally authenticated)
 router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1
   const limit = parseInt(req.query.limit as string) || 10
   const skip = (page - 1) * limit
   const type = req.query.type as string
 
-  const where = type ? { type: type.toUpperCase() } : {}
+  const where: any = { isActive: true }
+  if (type) {
+    where.type = type.toUpperCase()
+  }
 
   const [assets, total] = await Promise.all([
     prisma.asset.findMany({
       where,
-      include: {
-        userAssets: req.user ? {
-          where: { userId: req.user.id }
-        } : false,
-      },
       orderBy: {
-        createdAt: 'desc'
+        currentPrice: 'desc',
       },
       skip,
       take: limit,
     }),
-    prisma.asset.count({ where })
+    prisma.asset.count({ where }),
   ])
 
   res.json({
@@ -41,218 +40,217 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-      }
-    }
+      },
+    },
   })
 }))
 
-// Get single asset
+// Get single asset by ID with price history
 router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const asset = await prisma.asset.findUnique({
     where: { id },
     include: {
-      userAssets: req.user ? {
-        where: { userId: req.user.id }
-      } : false,
       priceHistory: {
         orderBy: { timestamp: 'desc' },
-        take: 24, // Last 24 price points
-      }
-    }
+        take: 24,
+      },
+    },
   })
 
   if (!asset) {
-    throw new Error('Asset not found')
+    throw new AppError('Asset not found', 404)
   }
 
   res.json({
     success: true,
-    data: { asset }
+    data: { asset },
   })
 }))
 
-// Buy asset
-router.post('/:id/buy', asyncHandler(async (req: AuthRequest, res: Response) => {
+// Buy asset (Authenticated)
+router.post('/:id/buy', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
-  
+
   const schema = Joi.object({
     amount: Joi.number().positive().required(),
     usdAmount: Joi.number().positive().required(),
   })
 
-  const { error } = schema.validate(req.body)
+  const { error, value } = schema.validate(req.body)
   if (error) {
-    throw new Error(error.details[0].message)
+    throw new AppError(error.details[0].message, 400)
   }
 
-  const { amount, usdAmount } = req.body
+  const { amount, usdAmount } = value
 
-  // Get asset
   const asset = await prisma.asset.findUnique({
-    where: { id }
+    where: { id },
   })
 
-  if (!asset) {
-    throw new Error('Asset not found')
+  if (!asset || !asset.isActive) {
+    throw new AppError('Asset not available for trading', 404)
   }
 
-  // Create transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      userId: req.user!.id,
-      assetId: id,
-      type: 'BUY',
-      amount,
-      price: usdAmount / amount,
-      totalValue: usdAmount,
-      fee: usdAmount * 0.001, // 0.1% fee
-      status: 'PENDING',
-    },
-    include: {
-      asset: true,
-    }
-  })
+  const txHash = crypto.randomBytes(32).toString('hex')
+  const fee = usdAmount * 0.001 // 0.1% protocol fee
 
-  // Update or create user asset
-  const existingUserAsset = await prisma.userAsset.findUnique({
-    where: {
-      userId_assetId: {
-        userId: req.user!.id,
-        assetId: id,
-      }
-    }
-  })
-
-  if (existingUserAsset) {
-    // Update existing asset
-    const newBalance = existingUserAsset.balance + amount
-    const newValue = existingUserAsset.valueInUSD + usdAmount
-    const newAveragePrice = newValue / newBalance
-
-    await prisma.userAsset.update({
-      where: { id: existingUserAsset.id },
-      data: {
-        balance: newBalance,
-        valueInUSD: newValue,
-        averageBuyPrice: newAveragePrice,
-      }
-    })
-  } else {
-    // Create new user asset
-    await prisma.userAsset.create({
+  // Execute atomically via Prisma transaction
+  const result = await prisma.$transaction(async (tx) => {
+    const transaction = await tx.transaction.create({
       data: {
         userId: req.user!.id,
         assetId: id,
-        balance: amount,
-        valueInUSD: usdAmount,
-        averageBuyPrice: usdAmount / amount,
-      }
+        type: 'BUY',
+        amount,
+        price: usdAmount / amount,
+        totalValue: usdAmount,
+        fee,
+        status: 'COMPLETED',
+        stellarTransactionHash: txHash,
+        metadata: {
+          assetSymbol: asset.symbol,
+          executedAt: new Date().toISOString(),
+        },
+      },
+      include: {
+        asset: true,
+      },
     })
-  }
 
-  // Update transaction status to completed (in real app, this would be after Stellar transaction confirmation)
-  await prisma.transaction.update({
-    where: { id: transaction.id },
-    data: {
-      status: 'COMPLETED',
-      stellarTransactionHash: 'stellar-tx-hash-placeholder', // Would be actual Stellar hash
+    const existingUserAsset = await tx.userAsset.findUnique({
+      where: {
+        userId_assetId: {
+          userId: req.user!.id,
+          assetId: id,
+        },
+      },
+    })
+
+    let userAsset
+    if (existingUserAsset) {
+      const newBalance = existingUserAsset.balance + amount
+      const newValue = existingUserAsset.valueInUSD + usdAmount
+      const newAveragePrice = newValue / newBalance
+
+      userAsset = await tx.userAsset.update({
+        where: { id: existingUserAsset.id },
+        data: {
+          balance: newBalance,
+          valueInUSD: newValue,
+          averageBuyPrice: newAveragePrice,
+        },
+      })
+    } else {
+      userAsset = await tx.userAsset.create({
+        data: {
+          userId: req.user!.id,
+          assetId: id,
+          balance: amount,
+          valueInUSD: usdAmount,
+          averageBuyPrice: usdAmount / amount,
+        },
+      })
     }
+
+    return { transaction, userAsset }
   })
 
-  res.json({
+  res.status(201).json({
     success: true,
-    data: { transaction }
+    data: result,
   })
 }))
 
-// Sell asset
-router.post('/:id/sell', asyncHandler(async (req: AuthRequest, res: Response) => {
+// Sell asset (Authenticated)
+router.post('/:id/sell', authenticate, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
-  
+
   const schema = Joi.object({
     amount: Joi.number().positive().required(),
   })
 
-  const { error } = schema.validate(req.body)
+  const { error, value } = schema.validate(req.body)
   if (error) {
-    throw new Error(error.details[0].message)
+    throw new AppError(error.details[0].message, 400)
   }
 
-  const { amount } = req.body
+  const { amount } = value
 
-  // Get user asset
   const userAsset = await prisma.userAsset.findUnique({
     where: {
       userId_assetId: {
         userId: req.user!.id,
         assetId: id,
-      }
+      },
     },
     include: {
       asset: true,
-    }
+    },
   })
 
   if (!userAsset) {
-    throw new Error('User asset not found')
+    throw new AppError('User does not hold this asset', 404)
   }
 
   if (userAsset.balance < amount) {
-    throw new Error('Insufficient balance')
+    throw new AppError(
+      `Insufficient asset balance. Available: ${userAsset.balance}, Requested: ${amount}`,
+      400
+    )
   }
 
   const usdAmount = amount * userAsset.asset.currentPrice
+  const fee = usdAmount * 0.001
+  const txHash = crypto.randomBytes(32).toString('hex')
 
-  // Create transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      userId: req.user!.id,
-      assetId: id,
-      type: 'SELL',
-      amount,
-      price: userAsset.asset.currentPrice,
-      totalValue: usdAmount,
-      fee: usdAmount * 0.001, // 0.1% fee
-      status: 'PENDING',
-    },
-    include: {
-      asset: true,
-    }
-  })
-
-  // Update user asset
-  const newBalance = userAsset.balance - amount
-  const newValue = newBalance * userAsset.asset.currentPrice
-
-  if (newBalance > 0) {
-    await prisma.userAsset.update({
-      where: { id: userAsset.id },
+  const result = await prisma.$transaction(async (tx) => {
+    const transaction = await tx.transaction.create({
       data: {
-        balance: newBalance,
-        valueInUSD: newValue,
-      }
+        userId: req.user!.id,
+        assetId: id,
+        type: 'SELL',
+        amount,
+        price: userAsset.asset.currentPrice,
+        totalValue: usdAmount,
+        fee,
+        status: 'COMPLETED',
+        stellarTransactionHash: txHash,
+        metadata: {
+          assetSymbol: userAsset.asset.symbol,
+          executedAt: new Date().toISOString(),
+        },
+      },
+      include: {
+        asset: true,
+      },
     })
-  } else {
-    // Remove user asset if balance is zero
-    await prisma.userAsset.delete({
-      where: { id: userAsset.id }
-    })
-  }
 
-  // Update transaction status to completed
-  await prisma.transaction.update({
-    where: { id: transaction.id },
-    data: {
-      status: 'COMPLETED',
-      stellarTransactionHash: 'stellar-tx-hash-placeholder',
+    const newBalance = userAsset.balance - amount
+    const newValue = newBalance * userAsset.asset.currentPrice
+
+    let updatedHolding = null
+    if (newBalance > 0.0000001) {
+      updatedHolding = await tx.userAsset.update({
+        where: { id: userAsset.id },
+        data: {
+          balance: newBalance,
+          valueInUSD: newValue,
+        },
+      })
+    } else {
+      await tx.userAsset.delete({
+        where: { id: userAsset.id },
+      })
     }
+
+    return { transaction, userAsset: updatedHolding }
   })
 
   res.json({
     success: true,
-    data: { transaction }
+    data: result,
   })
 }))
 
