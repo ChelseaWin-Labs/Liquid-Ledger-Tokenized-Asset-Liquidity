@@ -13,7 +13,11 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "generate": "prisma generate"
+    "generate": "prisma generate",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [
     "stellar",
