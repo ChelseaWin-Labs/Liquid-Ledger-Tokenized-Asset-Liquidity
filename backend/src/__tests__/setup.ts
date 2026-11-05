@@ -1,0 +1,8 @@
+process.env.NODE_ENV = 'test'
+process.env.PORT = '5001'
+process.env.JWT_SECRET = 'test_secret_for_unit_tests'
+process.env.JWT_REFRESH_SECRET = 'test_refresh_secret_for_unit_tests'
+process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/liquid_ledger_test?schema=public'
+process.env.STELLAR_NETWORK = 'testnet'
+process.env.HORIZON_URL = 'https://horizon-testnet.stellar.org'
+process.env.SOROBAN_RPC_URL = 'https://soroban-testnet.stellar.org'
