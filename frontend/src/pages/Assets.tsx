@@ -1,138 +1,198 @@
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatPercent } from '@/utils/format'
-import { TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Layers, DollarSign, ArrowUpDown } from 'lucide-react'
+import TradeModal, { TradeAsset } from '@/components/TradeModal'
+
+export interface ExtendedAsset extends TradeAsset {
+  type: 'gold' | 'treasury' | 'fund'
+  volume24h: number
+  marketCap: number
+  description: string
+  contractId: string
+  yieldBps: number
+}
 
 export default function Assets() {
-  const assets = [
+  const [selectedAsset, setSelectedAsset] = useState<TradeAsset | null>(null)
+  const [modalMode, setModalMode] = useState<'BUY' | 'SELL'>('BUY')
+  const [isTradeOpen, setIsTradeOpen] = useState(false)
+  const [filterType, setFilterType] = useState<string>('all')
+
+  const assets: ExtendedAsset[] = [
     {
-      id: 1,
-      name: 'Gold Token',
+      id: 'gld-1',
+      name: 'Liquid Ledger Gold Token',
       symbol: 'GLD',
       type: 'gold',
-      price: 2469.12,
-      change24h: 2.3,
-      changePercent: 5.2,
-      volume24h: 1234567,
-      marketCap: 987654321,
-      description: 'Tokenized gold backed by physical gold reserves',
-      holdings: 45.678,
-      value: 45678.90,
+      currentPrice: 65.40,
+      priceChange24h: 1.25,
+      volume24h: 1254000,
+      marketCap: 654000000,
+      description: 'Physical allocated LBMA-grade gold bullion in insured Swiss vaults.',
+      holdings: 25.5,
+      contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC',
+      yieldBps: 0,
     },
     {
-      id: 2,
-      name: 'US Treasury',
+      id: 'ust-1',
+      name: 'Liquid Ledger US Treasury 3M',
       symbol: 'UST',
       type: 'treasury',
-      price: 98.76,
-      change24h: -0.12,
-      changePercent: -0.4,
-      volume24h: 2345678,
-      marketCap: 1234567890,
-      description: 'Tokenized US Treasury securities',
-      holdings: 321.234,
-      value: 32123.45,
+      currentPrice: 100.15,
+      priceChange24h: 0.05,
+      volume24h: 4890000,
+      marketCap: 5007500000,
+      description: 'Short-duration US Treasury Bills with automated compounding daily yield.',
+      holdings: 1500.0,
+      contractId: 'CBEFD7FXYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYAA',
+      yieldBps: 520, // 5.20% APY
     },
     {
-      id: 3,
-      name: 'Diversified Fund',
+      id: 'div-1',
+      name: 'Liquid Ledger Diversified Fund',
       symbol: 'DIV',
       type: 'fund',
-      price: 2880.65,
-      change24h: 15.23,
-      changePercent: 1.9,
-      volume24h: 3456789,
-      marketCap: 4567890123,
-      description: 'Diversified index fund tracking major markets',
-      holdings: 476.305,
-      value: 47630.54,
+      currentPrice: 245.80,
+      priceChange24h: -0.42,
+      volume24h: 2130000,
+      marketCap: 6145000000,
+      description: 'Balanced basket of tokenized real estate, private credit, and blue-chip equities.',
+      holdings: 10.0,
+      contractId: 'CAEFB4FXYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYBB',
+      yieldBps: 780, // 7.80% APY
     },
   ]
 
+  const filtered = filterType === 'all'
+    ? assets
+    : assets.filter((a) => a.type === filterType)
+
+  const handleOpen = (asset: ExtendedAsset, mode: 'BUY' | 'SELL') => {
+    setSelectedAsset(asset)
+    setModalMode(mode)
+    setIsTradeOpen(true)
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Assets</h1>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Asset
-        </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Institutional RWAs</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Compliant, yield-bearing Real-World Assets tokenized on Stellar Soroban
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+          {['all', 'gold', 'treasury', 'fund'].map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md capitalize transition-colors ${
+                filterType === type
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{formatCurrency(125432.89)}</div>
-            <div className="text-sm text-gray-600">Total Portfolio Value</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold text-green-600">{formatPercent(2.3)}</div>
-            <div className="text-sm text-gray-600">24h Performance</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{assets.length}</div>
-            <div className="text-sm text-gray-600">Active Assets</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {assets.map((asset) => (
-          <Card key={asset.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center">
-                    {asset.name}
-                    <span className="ml-2 text-sm font-normal text-gray-600">
-                      ({asset.symbol})
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {filtered.map((asset) => {
+          const isPositive = asset.priceChange24h >= 0
+          return (
+            <Card key={asset.id} className="shadow-sm hover:shadow-md transition-shadow border-gray-200">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-blue-50 text-blue-700 uppercase">
+                    {asset.symbol}
+                  </span>
+                  {asset.yieldBps > 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {(asset.yieldBps / 100).toFixed(2)}% APY
                     </span>
-                  </CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">{asset.description}</p>
+                  )}
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">{formatCurrency(asset.price)}</div>
-                  <div className={`flex items-center text-sm ${
-                    asset.change24h >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {asset.change24h >= 0 ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
-                    {formatPercent(asset.changePercent)}
+                <CardTitle className="text-lg font-bold text-gray-900 mt-2">
+                  {asset.name}
+                </CardTitle>
+                <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+                  {asset.description}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-baseline pt-2 border-t">
+                  <span className="text-xs text-gray-500 font-medium">Spot Price</span>
+                  <div className="text-right">
+                    <span className="text-xl font-bold text-gray-900">
+                      {formatCurrency(asset.currentPrice)}
+                    </span>
+                    <div
+                      className={`flex items-center justify-end text-xs font-medium ${
+                        isPositive ? 'text-emerald-600' : 'text-red-600'
+                      }`}
+                    >
+                      {isPositive ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
+                      )}
+                      {formatPercent(asset.priceChange24h)} (24h)
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <div className="text-sm text-gray-600">Your Holdings</div>
-                  <div className="font-medium">{asset.holdings} {asset.symbol}</div>
+
+                <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-1.5 border">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">24h Volume</span>
+                    <span className="font-semibold text-gray-800">{formatCurrency(asset.volume24h)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Market Cap</span>
+                    <span className="font-semibold text-gray-800">{formatCurrency(asset.marketCap)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Your Holding</span>
+                    <span className="font-semibold text-blue-600 font-mono">
+                      {asset.holdings?.toFixed(2)} {asset.symbol} ({formatCurrency((asset.holdings || 0) * asset.currentPrice)})
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm text-gray-600">Value</div>
-                  <div className="font-medium">{formatCurrency(asset.value)}</div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button
+                    onClick={() => handleOpen(asset, 'BUY')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs"
+                    size="sm"
+                  >
+                    Buy {asset.symbol}
+                  </Button>
+                  <Button
+                    onClick={() => handleOpen(asset, 'SELL')}
+                    variant="outline"
+                    className="w-full border-gray-300 font-medium text-xs hover:bg-gray-50"
+                    size="sm"
+                  >
+                    Sell
+                  </Button>
                 </div>
-                <div>
-                  <div className="text-sm text-gray-600">24h Volume</div>
-                  <div className="font-medium">{formatCurrency(asset.volume24h)}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Market Cap</div>
-                  <div className="font-medium">{formatCurrency(asset.marketCap)}</div>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" className="flex-1">Buy</Button>
-                <Button variant="outline" className="flex-1">Sell</Button>
-                <Button variant="outline" className="flex-1">Details</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
+
+      <TradeModal
+        isOpen={isTradeOpen}
+        onClose={() => setIsTradeOpen(false)}
+        asset={selectedAsset}
+        initialMode={modalMode}
+      />
     </div>
   )
 }
