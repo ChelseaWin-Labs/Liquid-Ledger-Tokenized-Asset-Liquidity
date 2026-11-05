@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../config/database'
+import { config } from '../config/env'
 import { AppError } from './errorHandler'
 
 export interface AuthRequest extends Request {
@@ -23,7 +24,7 @@ export const authenticate = async (
       throw new AppError('Access denied. No token provided.', 401)
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const decoded = jwt.verify(token, config.jwtSecret) as any
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../config/database'
+import { config } from '../config/env'
 import { AppError } from '../middleware/errorHandler'
 import { asyncHandler } from '../middleware/errorHandler'
 import { AuthRequest } from '../middleware/auth'
@@ -26,13 +27,13 @@ const loginSchema = Joi.object({
 const generateTokens = (userId: string) => {
   const accessToken = jwt.sign(
     { userId },
-    process.env.JWT_SECRET!,
+    config.jwtSecret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
   )
 
   const refreshToken = jwt.sign(
     { userId },
-    process.env.JWT_REFRESH_SECRET!,
+    process.env.JWT_REFRESH_SECRET || `${config.jwtSecret}_refresh`,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   )
 
@@ -163,7 +164,7 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Verify refresh token
-  const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any
+  const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || `${config.jwtSecret}_refresh`) as any
 
   // Find session
   const session = await prisma.session.findUnique({

@@ -2,7 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
-import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
 
 // Import routes
@@ -13,29 +12,38 @@ import transactionRoutes from './controllers/transactionController'
 import walletRoutes from './controllers/walletController'
 import cardRoutes from './controllers/cardController'
 
-// Import middleware
+// Import middleware & config
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './utils/logger'
-
-// Load environment variables
-dotenv.config()
+import { config } from './config/env'
 
 const app = express()
-const PORT = process.env.PORT || 5000
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.',
+  },
 })
 
 // Middleware
 app.use(helmet())
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-}))
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) return callback(null, true)
+      if (config.frontendUrls.indexOf(origin) !== -1 || config.env === 'development') {
+        return callback(null, true)
+      }
+      return callback(new Error('Blocked by CORS policy'))
+    },
+    credentials: true,
+  })
+)
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
@@ -47,7 +55,7 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: config.env,
   })
 })
 
@@ -70,10 +78,12 @@ app.use('*', (req, res) => {
 // Error handling middleware
 app.use(errorHandler)
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`)
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`)
-})
+// Start server if not running in test mode
+if (config.env !== 'test') {
+  app.listen(config.port, () => {
+    logger.info(`Server is running on port ${config.port}`)
+    logger.info(`Environment: ${config.env}`)
+  })
+}
 
 export default app

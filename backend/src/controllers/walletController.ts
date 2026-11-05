@@ -1,12 +1,12 @@
 import { Router, Response } from 'express'
 import { asyncHandler } from '../middleware/errorHandler'
-import { AuthRequest } from '../middleware/auth'
+import { authenticate, AuthRequest } from '../middleware/auth'
 import { stellarService } from '../services/stellarService'
 
 const router = Router()
 
 // All wallet routes require authentication
-router.use(require('../middleware/auth').authenticate)
+router.use(authenticate)
 
 // Connect wallet
 router.post('/connect', asyncHandler(async (req: AuthRequest, res: Response) => {

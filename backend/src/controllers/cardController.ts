@@ -1,13 +1,13 @@
 import { Router, Response } from 'express'
 import { prisma } from '../config/database'
 import { asyncHandler } from '../middleware/errorHandler'
-import { AuthRequest } from '../middleware/auth'
+import { authenticate, AuthRequest } from '../middleware/auth'
 import Joi from 'joi'
 
 const router = Router()
 
 // All card routes require authentication
-router.use(require('../middleware/auth').authenticate)
+router.use(authenticate)
 
 // Get user cards
 router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
