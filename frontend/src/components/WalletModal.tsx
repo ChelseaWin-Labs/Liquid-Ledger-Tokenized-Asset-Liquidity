@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useWalletStore } from '@/store/walletStore'
 import { Button } from '@/components/ui/button'
-import { Wallet, Key, AlertCircle, CheckCircle } from 'lucide-react'
+import { Wallet, Key, AlertCircle } from 'lucide-react'
 
 interface WalletModalProps {
   isOpen: boolean

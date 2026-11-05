@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, Settings, Wallet, CheckCircle, LogOut } from 'lucide-react'
+import { Bell, Settings, Wallet, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWalletStore } from '@/store/walletStore'
 import { truncateAddress } from '@/utils/format'

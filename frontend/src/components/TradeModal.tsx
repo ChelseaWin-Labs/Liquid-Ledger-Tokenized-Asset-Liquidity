@@ -28,7 +28,7 @@ export default function TradeModal({
   initialMode = 'BUY',
   onSuccess,
 }: TradeModalProps) {
-  const { isConnected, refreshBalance } = useWalletStore()
+  const { refreshBalance } = useWalletStore()
   const [mode, setMode] = useState<'BUY' | 'SELL'>(initialMode)
   const [amount, setAmount] = useState<string>('1')
   const [isSubmitting, setIsSubmitting] = useState(false)

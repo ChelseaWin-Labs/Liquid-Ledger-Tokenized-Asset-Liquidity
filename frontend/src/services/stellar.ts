@@ -1,16 +1,15 @@
 import {
   isConnected as isFreighterConnected,
-  requestAccess,
+  setAllowed,
   getPublicKey,
-  getNetwork,
   signTransaction,
 } from '@stellar/freighter-api'
-import { Horizon, Networks, Asset } from 'stellar-sdk'
+import { Horizon, Networks } from 'stellar-sdk'
 
 const HORIZON_URL =
-  import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org'
+  (import.meta as any).env?.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org'
 const NETWORK_PASSPHRASE =
-  import.meta.env.VITE_STELLAR_NETWORK === 'public'
+  (import.meta as any).env?.VITE_STELLAR_NETWORK === 'public'
     ? Networks.PUBLIC
     : Networks.TESTNET
 
@@ -54,11 +53,7 @@ export class StellarClient {
 
   async connectWallet(): Promise<string> {
     try {
-      const accessObj = await requestAccess()
-      if (accessObj && typeof accessObj === 'object' && 'address' in accessObj) {
-        return (accessObj as any).address
-      }
-
+      await setAllowed()
       const key = await getPublicKey()
       if (key) {
         return key
@@ -90,7 +85,7 @@ export class StellarClient {
         assets: balances,
         sequence: account.sequenceNumber(),
       }
-    } catch (error: any) {
+    } catch {
       return {
         publicKey,
         balance: 0,

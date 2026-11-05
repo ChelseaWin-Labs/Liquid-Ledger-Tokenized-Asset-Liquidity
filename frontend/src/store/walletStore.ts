@@ -19,9 +19,28 @@ interface WalletState {
 
 const LOCAL_STORAGE_KEY = 'liquid_ledger_wallet'
 
+const getStoredKey = (): string | null => {
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    return localStorage.getItem(LOCAL_STORAGE_KEY)
+  }
+  return null
+}
+
+const setStoredKey = (key: string): void => {
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    localStorage.setItem(LOCAL_STORAGE_KEY, key)
+  }
+}
+
+const removeStoredKey = (): void => {
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    localStorage.removeItem(LOCAL_STORAGE_KEY)
+  }
+}
+
 export const useWalletStore = create<WalletState>((set, get) => ({
-  publicKey: localStorage.getItem(LOCAL_STORAGE_KEY) || null,
-  isConnected: !!localStorage.getItem(LOCAL_STORAGE_KEY),
+  publicKey: getStoredKey(),
+  isConnected: !!getStoredKey(),
   isConnecting: false,
   network: 'TESTNET',
   balance: 0,
@@ -37,11 +56,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       if (isAvailable) {
         address = await stellarClient.connectWallet()
       } else {
-        // Fallback demo testnet account if browser extension is not installed
         address = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5'
       }
 
-      localStorage.setItem(LOCAL_STORAGE_KEY, address)
+      setStoredKey(address)
       const account = await stellarClient.getAccount(address)
 
       set({
@@ -63,7 +81,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   connectWithKey: async (pubKey: string) => {
     set({ isConnecting: true, error: null })
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, pubKey)
+      setStoredKey(pubKey)
       const account = await stellarClient.getAccount(pubKey)
 
       set({
@@ -83,7 +101,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   disconnect: () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY)
+    removeStoredKey()
     set({
       publicKey: null,
       isConnected: false,

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatPercent } from '@/utils/format'
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Layers, DollarSign, ArrowUpDown } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import TradeModal, { TradeAsset } from '@/components/TradeModal'
 
 export interface ExtendedAsset extends TradeAsset {

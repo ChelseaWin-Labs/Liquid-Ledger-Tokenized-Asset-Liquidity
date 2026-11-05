@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/utils/format'
-import { CreditCard, Eye, EyeOff, Lock, Unlock, ShoppingBag, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
+import { Eye, EyeOff, Lock, Unlock, ShoppingBag, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
 
 interface CardTx {
   id: string
@@ -16,7 +16,7 @@ interface CardTx {
 export default function CardPage() {
   const [showCardNumber, setShowCardNumber] = useState(false)
   const [isFrozen, setIsFrozen] = useState(false)
-  const [dailyLimit, setDailyLimit] = useState(5000)
+  const [dailyLimit] = useState(5000)
   const [spentToday, setSpentToday] = useState(148.50)
 
   // POS Spend Simulator State

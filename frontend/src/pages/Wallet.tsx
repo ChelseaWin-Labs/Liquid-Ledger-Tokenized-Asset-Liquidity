@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { formatCurrency, truncateAddress } from '@/utils/format'
-import { Wallet as WalletIcon, Copy, ExternalLink, Send, Droplet, CheckCircle, AlertCircle } from 'lucide-react'
+import { truncateAddress } from '@/utils/format'
+import { Wallet as WalletIcon, Copy, ExternalLink, Send, Droplet, CheckCircle } from 'lucide-react'
 import { useWalletStore } from '@/store/walletStore'
 import WalletModal from '@/components/WalletModal'
 
 export default function Wallet() {
-  const { publicKey, balance, assets, isConnected, disconnect, refreshBalance } = useWalletStore()
+  const { publicKey, balance, isConnected, disconnect, refreshBalance } = useWalletStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [faucetLoading, setFaucetLoading] = useState(false)
