@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: liquid-ledger-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: liquid_ledger
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  stellar-standalone:
+    image: stellar/quickstart:testing
+    container_name: liquid-ledger-stellar-standalone
+    ports:
+      - '8000:8000'
+    command: --standalone --enable-soroban-rpc
+    environment:
+      NETWORK: standalone
+
+volumes:
+  postgres_data:
